@@ -18,15 +18,71 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      home: Scaffold(
-        appBar: AppBar(
-          title: const Text('Notes'),
-          backgroundColor: Colors.blue,
-        ),
-        body: const Center(
-          child: Text('Hello World'),
-        ),
+    return MaterialApp(home: HomeScreen());
+  }
+}
+
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  final _noteStream =
+      Supabase.instance.client.from('notes').stream(primaryKey: ['id']);
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Notes'),
+        backgroundColor: Colors.blue,
+      ),
+      body: StreamBuilder<List<Map<String, dynamic>>>(
+        stream: _noteStream,
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          final notes = snapshot.data!;
+          return ListView.builder(
+            itemCount: notes.length,
+            itemBuilder: (context, index) {
+              final note = notes[index];
+              return ListTile(
+                title: Text(note['body']),
+              );
+            },
+          );
+        },
+      ),
+      floatingActionButton: FloatingActionButton(
+        child: const Icon(Icons.add),
+        onPressed: () {
+          showDialog(
+            context: context,
+            builder: (context) {
+              return SimpleDialog(
+                title: Text('Add Note'),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 20),
+                children: [
+                  TextFormField(
+                    decoration: const InputDecoration(
+                      hintText: 'Note',
+                    ),
+                    onFieldSubmitted: (value) async {
+                      await Supabase.instance.client
+                          .from('notes')
+                          .insert({'body': value});
+                      Navigator.pop(context);
+                    },
+                  )
+                ],
+              );
+            },
+          );
+        },
       ),
     );
   }
